@@ -11,7 +11,7 @@ const server = http.createServer(app);
 // Use CORS to allow connections from the browser client
 const io = new Server(server, {
     cors: {
-        origin: "*", // ⚠️ In production, replace "*" with your game's domain
+        origin: "https://mhnofficial.github.io", // ⚠️ In production, replace "*" with your game's domain
         methods: ["GET", "POST"]
     }
 });
