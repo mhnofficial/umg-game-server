@@ -9,6 +9,7 @@ const app = express();
 const server = http.createServer(app);
 
 // --- Global Server State Management ---
+// NOTE: Added 'password' field to serverData definition
 const games = {}; // Stores all active game rooms: { serverID: { serverData, players: { playerID: playerData } } }
 const playerToServer = {}; // Tracks which server each socket ID belongs to: { socketID: serverID }
 const MAX_PLAYERS = 8;
@@ -73,11 +74,14 @@ io.on('connection', (socket) => {
                 serverName: data.serverName || `Game by ${data.hostName}`,
                 hostID: playerID,
                 hostName: data.hostName,
-                maxPlayers: MAX_PLAYERS,
+                description: data.description, // Added description from form
+                maxPlayers: data.maxPlayers || MAX_PLAYERS, // Use maxPlayers from form
                 currentPlayers: 1,
-                gameSpeed: data.gameSpeed || 'Standard',
+                gameSpeed: data.gameSpeed || 'Normal',
+                password: data.password || null, // Added password from form
                 turn: 1,
                 mapData: {} // Placeholder for map/game-specific data
+                // All other rules/settings (fogOfWar, etc.) from data should be stored here too
             },
             players: {
                 [playerID]: {
@@ -96,6 +100,7 @@ io.on('connection', (socket) => {
         console.log(`Server created: ${serverID} by ${data.hostName}`);
         
         // Tell the client to redirect to the new game room URL
+        // We emit 'serverCreated' which the client uses to join the room
         socket.emit('serverCreated', serverID); 
         
         // Log the event to the console (not critical, but helpful)
@@ -120,6 +125,13 @@ io.on('connection', (socket) => {
             socket.emit('joinFailed', 'Server is full.');
             return;
         }
+
+        // --- PASSWORD CHECK (New) ---
+        if (game.serverData.password && game.serverData.password !== data.password) {
+            socket.emit('joinFailed', 'Incorrect password.');
+            return;
+        }
+        // ----------------------------
 
         // Add player to the game state
         game.serverData.currentPlayers++;
@@ -148,14 +160,34 @@ io.on('connection', (socket) => {
         console.log(`Player ${data.hostName} joined server: ${serverID}`);
     });
     
+    // ===================================
+    // 3. REQUEST SERVER LIST EVENT (FIXED: Moved into io.on('connection'))
+    // ===================================
+    socket.on('requestServerList', () => {
+        const publicServerList = Object.values(games).map(game => ({
+            id: game.serverData.id,
+            serverName: game.serverData.serverName,
+            hostName: game.serverData.hostName,
+            currentPlayers: game.serverData.currentPlayers,
+            maxPlayers: game.serverData.maxPlayers,
+            gameSpeed: game.serverData.gameSpeed,
+            // Only send a flag, not the actual password
+            hasPassword: !!game.serverData.password, 
+            description: game.serverData.description || null
+        }));
+        
+        // Send the list back to the client that requested it
+        socket.emit('serverList', publicServerList);
+        console.log(`Sent server list to: ${socket.id}`);
+    });
     
     // ===================================
-    // 3. PLAYER ACTION EVENT
+    // 4. PLAYER ACTION EVENT (Updated from 3)
     // ===================================
     socket.on('playerAction', (action) => {
         const serverID = playerToServer[socket.id];
         const game = games[serverID];
-        const player = game.players[socket.id];
+        const player = game?.players[socket.id];
 
         if (!game || !player) return; // Ignore if not in a game
 
@@ -184,12 +216,12 @@ io.on('connection', (socket) => {
     });
     
     // ===================================
-    // 4. CHAT MESSAGE
+    // 5. CHAT MESSAGE (Updated from 4)
     // ===================================
     socket.on('chatMessage', (message) => {
         const serverID = playerToServer[socket.id];
         const game = games[serverID];
-        const player = game.players[socket.id];
+        const player = game?.players[socket.id];
         
         if (!game || !player) return;
 
@@ -198,7 +230,7 @@ io.on('connection', (socket) => {
     });
 
     // ===================================
-    // 5. DISCONNECT EVENT
+    // 6. DISCONNECT EVENT (Updated from 5)
     // ===================================
     socket.on('disconnect', () => {
         const playerID = socket.id;
@@ -236,8 +268,9 @@ io.on('connection', (socket) => {
         }
         console.log(`Player disconnected: ${playerID}`);
     });
-});
-// --- UPDATED END OF server.js ---
+}); // <--- All socket.on events MUST be inside this block
+
+// --- SERVER LISTEN START ---
 
 // This check ensures the server.listen() call only runs if
 // this file is executed directly (i.e., 'node server.js' or 'nodemon server.js'),
@@ -247,26 +280,3 @@ if (require.main === module) {
         console.log(`UMG Multiplayer Server is running on port ${PORT}`);
     });
 }
-
-// --- Add this to your backend server.js ---
-    // ===================================
-    // 3. REQUEST SERVER LIST EVENT (New)
-    // ===================================
-    socket.on('requestServerList', () => {
-        const publicServerList = Object.values(games).map(game => ({
-            id: game.serverData.id,
-            serverName: game.serverData.serverName,
-            hostName: game.serverData.hostName,
-            currentPlayers: game.serverData.currentPlayers,
-            maxPlayers: game.serverData.maxPlayers,
-            gameSpeed: game.serverData.gameSpeed,
-            // Only send a flag, not the actual password
-            hasPassword: !!game.serverData.password, 
-            description: game.serverData.description || null
-        }));
-        
-        // Send the list back to the client that requested it
-        socket.emit('serverList', publicServerList);
-        console.log(`Sent server list to: ${socket.id}`);
-    });
-// ------------------------------------------
