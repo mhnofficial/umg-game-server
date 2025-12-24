@@ -12,7 +12,7 @@ const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
         // This MUST match the protocol and domain of your GitHub Pages client
-        origin: "https://mhnofficial.github.io/umg-client-static", 
+        origin: "*", 
         methods: ["GET", "POST"]
     }
 });
