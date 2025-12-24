@@ -1,4 +1,4 @@
-// server.js - Backend Node.js Server Code
+// server.js - Backend Node.js Server Code (Verified)
 
 const express = require('express');
 const http = require('http');
@@ -8,19 +8,13 @@ const cors = require('cors');
 const app = express();
 const server = http.createServer(app);
 
-// NOTE: This line is often helpful for debugging, but not necessary for Socket.IO
-// app.get('/', (req, res) => {
-//     res.send('Server is running, but I only speak Socket.IO');
-// });
-
-
-// CRITICAL: Ensure CORS is correct
+// CRITICAL: Ensure CORS is correct for the client's domain
 const io = new Server(server, {
-    cors: {
-        // Explicitly set to your client's exact domain
-        origin: "https://mhnofficial.github.io", 
-        methods: ["GET", "POST"]
-    }
+    cors: {
+        // Client URL is set correctly here
+        origin: "https://mhnofficial.github.io", 
+        methods: ["GET", "POST"]
+    }
 });
 
 const PORT = process.env.PORT || 3000;
