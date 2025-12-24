@@ -245,3 +245,26 @@ server.listen(PORT, () => {
 server.listen(PORT, () => {
     console.log(`UMG Multiplayer Server is running on port ${PORT}`);
 });
+
+// --- Add this to your backend server.js ---
+    // ===================================
+    // 3. REQUEST SERVER LIST EVENT (New)
+    // ===================================
+    socket.on('requestServerList', () => {
+        const publicServerList = Object.values(games).map(game => ({
+            id: game.serverData.id,
+            serverName: game.serverData.serverName,
+            hostName: game.serverData.hostName,
+            currentPlayers: game.serverData.currentPlayers,
+            maxPlayers: game.serverData.maxPlayers,
+            gameSpeed: game.serverData.gameSpeed,
+            // Only send a flag, not the actual password
+            hasPassword: !!game.serverData.password, 
+            description: game.serverData.description || null
+        }));
+        
+        // Send the list back to the client that requested it
+        socket.emit('serverList', publicServerList);
+        console.log(`Sent server list to: ${socket.id}`);
+    });
+// ------------------------------------------
