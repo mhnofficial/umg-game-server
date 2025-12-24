@@ -237,14 +237,16 @@ io.on('connection', (socket) => {
         console.log(`Player disconnected: ${playerID}`);
     });
 });
+// --- UPDATED END OF server.js ---
 
-server.listen(PORT, () => {
-    console.log(`UMG Multiplayer Server is running on port ${PORT}`);
-});
-
-server.listen(PORT, () => {
-    console.log(`UMG Multiplayer Server is running on port ${PORT}`);
-});
+// This check ensures the server.listen() call only runs if
+// this file is executed directly (i.e., 'node server.js' or 'nodemon server.js'),
+// not if it is imported as a module by another part of your code.
+if (require.main === module) {
+    server.listen(PORT, () => {
+        console.log(`UMG Multiplayer Server is running on port ${PORT}`);
+    });
+}
 
 // --- Add this to your backend server.js ---
     // ===================================
