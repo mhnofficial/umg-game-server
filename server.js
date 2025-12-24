@@ -8,10 +8,11 @@ const crypto = require('crypto'); // Used for generating unique IDs
 const app = express();
 const server = http.createServer(app);
 
-// Use CORS to allow connections from the browser client
+// Use CORS to allow connections from the browser client (GitHub Pages URL)
 const io = new Server(server, {
     cors: {
-        origin: "https://mhnofficial.github.io", // ⚠️ In production, replace "*" with your game's domain
+        // This MUST match the protocol and domain of your GitHub Pages client
+        origin: "https://mhnofficial.github.io/umg-client-static", 
         methods: ["GET", "POST"]
     }
 });
@@ -31,9 +32,6 @@ function generateGameID() {
 
 /**
  * Creates a basic, placeholder map for a new game.
- * In a real game, this would load a map template based on size/rules.
- * @param {number} mapSize - The requested map size.
- * @returns {object} Initial territories state.
  */
 function createInitialMap(mapSize) {
     const territories = {};
@@ -45,10 +43,10 @@ function createInitialMap(mapSize) {
         territories[`T-${i}`] = {
             id: `T-${i}`,
             name: `Sector ${i}`,
-            ownerId: null, // Unclaimed initially
+            ownerId: null, 
             militaryUnits: 0,
-            productionValue: Math.floor(Math.random() * 500) + 100, // Random starting value
-            coords: { x: Math.random() * 1000, y: Math.random() * 700 } // Placeholder
+            productionValue: Math.floor(Math.random() * 500) + 100, 
+            coords: { x: Math.random() * 1000, y: Math.random() * 700 } 
         };
     }
     return territories;
@@ -56,15 +54,13 @@ function createInitialMap(mapSize) {
 
 /**
  * Selects the next player in sequence to take the turn.
- * @param {object} game - The current game state.
- * @returns {string} The ID of the next player.
  */
 function getNextPlayerId(game) {
     const playerIDs = Object.keys(game.players);
     if (playerIDs.length === 0) return null;
 
     if (!game.gameState.currentTurnPlayerId) {
-        return playerIDs[0]; // Start with the host or first player
+        return playerIDs[0]; 
     }
 
     const currentIndex = playerIDs.indexOf(game.gameState.currentTurnPlayerId);
@@ -73,18 +69,14 @@ function getNextPlayerId(game) {
 }
 
 /**
- * The CORE GAME LOGIC function. Validates, applies, and broadcasts the result of an action.
- * @param {object} game - The mutable game object.
- * @param {string} playerID - The ID of the player performing the action.
- * @param {object} action - The action data from the client.
+ * The CORE GAME LOGIC function.
  */
 function processAction(game, playerID, action) {
     const player = game.players[playerID];
     const state = game.gameState;
 
-    // 1. Turn Validation (Crucial for multiplayer)
+    // 1. Turn Validation
     if (state.currentTurnPlayerId !== playerID) {
-        // You can emit an error back to the player here
         io.to(playerID).emit('globalChat', 'ERROR: It is not your turn.', 'error');
         return; 
     }
@@ -93,33 +85,16 @@ function processAction(game, playerID, action) {
 
     switch (action.type) {
         case 'CLAIM_TERRITORY':
-            const target = state.territories[action.territoryId];
-            if (target && target.ownerId === null && player.resources.money >= 500) {
-                target.ownerId = playerID;
-                target.militaryUnits = 2; // Initial garrison
-                player.resources.money -= 500;
-                broadcastMessage = `${player.name} claimed ${target.name}.`;
-            } else {
-                 io.to(playerID).emit('globalChat', 'ERROR: Cannot claim territory (already owned or insufficient funds).', 'error');
-            }
-            break;
+             // ... your existing CLAIM_TERRITORY logic ...
+             break;
 
         case 'ATTACK_TERRITORY':
-            // ⚠️ Complex logic placeholder ⚠️
-            // 1. Check if attack is legal (neighbor, not too far, sufficient units).
-            // 2. Perform combat calculation (dice roll/formula based on units).
-            // 3. Update territory ownership and unit counts.
-            broadcastMessage = `${player.name} declared war! (Combat result pending)`;
-            break;
+             // ... your existing ATTACK_TERRITORY logic ...
+             break;
 
         case 'END_TURN':
-            // Advance resources/income before ending turn
-            // player.resources.money += calculateIncome(player, state.territories);
-
-            // Determine the next player
             const nextPlayerId = getNextPlayerId(game);
             
-            // If it's the host's turn again, advance the game turn count
             if (nextPlayerId === Object.keys(game.players)[0] && state.gamePhase === 'ACTIVE') {
                 state.currentTurn++;
             }
@@ -132,7 +107,6 @@ function processAction(game, playerID, action) {
             console.log(`Unknown action type: ${action.type}`);
     }
 
-    // Broadcast log message and updated state to all clients in the room
     if (broadcastMessage) {
         io.to(game.id).emit('globalChat', broadcastMessage, 'system');
     }
@@ -143,7 +117,6 @@ function processAction(game, playerID, action) {
         gamePhase: state.gamePhase,
         currentTurnPlayerId: state.currentTurnPlayerId,
         territories: state.territories,
-        // Player resources need to be updated selectively or included in state.players
         players: game.players 
     });
 }
@@ -152,47 +125,20 @@ function processAction(game, playerID, action) {
 io.on('connection', (socket) => {
     console.log(`User connected: ${socket.id}`);
     
-    // The player's assigned gameID is stored temporarily after they join a room
     let currentGameID = null;
 
     // [1] HANDLE SERVER LIST REQUEST
     socket.on('requestServerList', () => {
-        const serverList = Object.values(GAMES).map(game => ({
-            id: game.id,
-            serverName: game.serverName,
-            hostName: game.hostName,
-            description: game.settings.description,
-            maxPlayers: game.settings.maxPlayers,
-            currentPlayers: Object.keys(game.players).length,
-            hasPassword: !!game.password,
-            gameSpeed: game.settings.gameSpeed,
-        }));
-        socket.emit('serverList', serverList);
+         // ... your existing requestServerList logic ...
     });
 
     // [2] HANDLE CREATE SERVER REQUEST
     socket.on('createServer', (data) => {
-        const gameID = generateGameID();
-        
-        GAMES[gameID] = {
-            id: gameID,
-            serverName: data.serverName,
-            hostName: data.hostName,
-            password: data.password || null,
-            settings: data, 
-            players: {}, 
-            gameState: {
-                currentTurn: 1,
-                gamePhase: 'SETUP',
-                currentTurnPlayerId: null, // Assigned on first player join
-                territories: createInitialMap(data.mapSize),
-            }
-        };
-        console.log(`Created new server: ${gameID} - ${data.serverName}`);
+         // ... your existing createServer logic ...
     });
 
-    // [3] HANDLE JOIN SERVER REQUEST
-    socket.on('joinServer', ({ serverID, password }) => {
+    // [3] HANDLE JOIN SERVER REQUEST - Client side must call this!
+    socket.on('joinServer', ({ serverID, password, hostName }) => {
         const game = GAMES[serverID];
         if (!game) {
             socket.emit('joinFailed', 'Server not found.');
@@ -205,8 +151,8 @@ io.on('connection', (socket) => {
         }
 
         if (Object.keys(game.players).length >= game.settings.maxPlayers) {
-             socket.emit('joinFailed', 'Server is full.');
-             return;
+              socket.emit('joinFailed', 'Server is full.');
+              return;
         }
 
         // --- SUCCESSFUL JOIN LOGIC ---
@@ -216,7 +162,7 @@ io.on('connection', (socket) => {
         
         // Add player to game state
         const playerCount = Object.keys(game.players).length;
-        const playerName = data.hostName || `Player ${playerCount + 1}`;
+        const playerName = hostName || `Player ${playerCount + 1}`; // Use hostName from client join data
         
         game.players[playerID] = { 
             id: playerID, 
@@ -240,12 +186,24 @@ io.on('connection', (socket) => {
             ...game.gameState,
             playerID: playerID,
             players: game.players,
-            serverID: serverID,
-            resources: game.players[playerID].resources // Send individual player resources
+            server: { // Provide structured server info for client
+                serverName: game.serverName,
+                hostName: game.hostName,
+                gameSpeed: game.settings.gameSpeed,
+                maxPlayers: game.settings.maxPlayers,
+                currentPlayers: Object.keys(game.players).length
+            },
+            player: { // Provide structured player info for client
+                 name: playerName,
+                 resources: game.players[playerID].resources
+            }
         });
         
         // Update all players with the new player list
-        io.to(serverID).emit('stateUpdate', { players: game.players });
+        io.to(serverID).emit('stateUpdate', { 
+            players: game.players,
+            currentDay: game.gameState.currentTurn // Send the day count in updates
+        });
     });
 
     // [4] HANDLE PLAYER ACTIONS
@@ -261,7 +219,7 @@ io.on('connection', (socket) => {
         const game = GAMES[currentGameID];
         const player = game?.players[socket.id];
         if (player) {
-            io.to(currentGameID).emit('globalChat', `${player.name}: ${message}`, 'chat');
+            io.to(currentGameID).emit('globalChat', message, 'chat'); // Changed to only send message, author is added on client
         }
     });
 
@@ -270,20 +228,7 @@ io.on('connection', (socket) => {
         console.log(`User disconnected: ${socket.id}`);
         const game = GAMES[currentGameID];
         if (game) {
-            const playerName = game.players[socket.id]?.name || 'A player';
-            delete game.players[socket.id];
-            
-            // Broadcast that a player left
-            io.to(currentGameID).emit('globalChat', `${playerName} has disconnected.`, 'system');
-            
-            // Send updated player list
-            io.to(currentGameID).emit('stateUpdate', { players: game.players });
-
-            // TODO: If the game is empty, delete the server
-            if (Object.keys(game.players).length === 0) {
-                 delete GAMES[currentGameID];
-                 console.log(`Server ${currentGameID} shut down due to player departure.`);
-            }
+             // ... your existing disconnect logic ...
         }
     });
 });
