@@ -16,11 +16,11 @@ const server = http.createServer(app);
 
 // CRITICAL: Ensure CORS is correct
 const io = new Server(server, {
-    cors: {
-        // Using the specific origin
-        origin: "https://mhnofficial.github.io", 
-        methods: ["GET", "POST"]
-    }
+    cors: {
+        // Explicitly set to your client's exact domain
+        origin: "https://mhnofficial.github.io", 
+        methods: ["GET", "POST"]
+    }
 });
 
 const PORT = process.env.PORT || 3000;
